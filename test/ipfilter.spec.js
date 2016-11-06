@@ -5,6 +5,59 @@
 var ipfilter = require('../index').IpFilter;
 var IpDeniedError = require('../index').IpDeniedError;
 var assert = require('assert');
+// https://github.com/baminteractive/express-ipfilter/issues/34
+describe('should block other ips than allowed when using cidr', function(){
+  var ips = [ '23.235.32.0/20',
+    '43.249.72.0/22',
+    '103.244.50.0/24',
+    '103.245.222.0/23',
+    '103.245.224.0/24',
+    '104.156.80.0/20',
+    '151.101.0.0/16',
+    '157.52.64.0/18',
+    '172.111.64.0/18',
+    '185.31.16.0/22',
+    '199.27.72.0/21',
+    '199.232.0.0/16',
+    '202.21.128.0/24',
+    '203.57.145.0/24' ];
+
+  beforeEach(function () {
+    this.ipfilter = ipfilter(ips, { mode: 'allow', allowedHeaders: ['x-forwarded-for'] });
+    this.req = {
+      session: {},
+      headers: [],
+      connection: {
+        remoteAddress: ''
+      }
+    };
+  });
+
+  it('should allow all whitelisted ips', function (done) {
+    this.req.connection.remoteAddress= '202.21.128.1';
+    this.ipfilter(this.req, {}, function () {
+      done();
+    });
+  });
+
+  it('should allow all whitelisted forwarded ips', function (done) {
+    this.req.headers['x-forwarded-for'] = '202.21.128.1';
+    this.ipfilter(this.req, {}, function () {
+      done();
+    });
+  });
+
+
+  it('should deny all not whitelisted ips', function (done) {
+    this.req.connection.remoteAddress = '11.12.13.14';
+    checkError(this.ipfilter, this.req, done);
+  });
+
+  it('should deny all not whitelisted forwarded ips', function (done) {
+    this.req.headers['x-forwarded-for'] = '11.12.13.14';
+    checkError(this.ipfilter, this.req, done);
+  });
+});
 
 describe('enforcing IP address blacklist restrictions', function () {
 
